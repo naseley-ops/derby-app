@@ -642,8 +642,400 @@ function SummaryRow({ label, value }) {
   )
 }
 
+// ── Fairmount Park ────────────────────────────────────────────────────────────
+const FAIRMOUNT_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ-MEid0dPSaoM3X67c_DjyFdQ0lBiQQ7lCUJBxjtwnI5oz8cpo7t7rpigDep9EVyRcVrkq3UXuJzTo/pub?output=csv&gid=192547044'
+
+const FAIRMOUNT_FALLBACK = [
+  { race:1, postTime:'1:30 PM', post:1, name:'Dark Diamond',        odds:'6/5',  oddsNum:1.2,  jockey:'Giles Emmanuel',     trainer:'Fridley Steve',           lastRace:'Unknown', figure:85, postMult:1.05 },
+  { race:1, postTime:'1:30 PM', post:2, name:"Maya's Warrior",      odds:'15/1', oddsNum:15,   jockey:'Ortega Harold J',    trainer:'Retana Gabe',             lastRace:'Unknown', figure:78, postMult:1.05 },
+  { race:1, postTime:'1:30 PM', post:3, name:'Belleinthetemple',    odds:'9/5',  oddsNum:1.9,  jockey:'Santos Ademar',      trainer:'Martinez Ralph',          lastRace:'Unknown', figure:88, postMult:1.1  },
+  { race:1, postTime:'1:30 PM', post:4, name:"Jack's Yellow Rose",  odds:'2/5',  oddsNum:0.4,  jockey:'Felix Julio E',      trainer:'Burdess Terry',           lastRace:'Unknown', figure:90, postMult:1    },
+  { race:1, postTime:'1:30 PM', post:5, name:'Alternative Grace',   odds:'15/1', oddsNum:15,   jockey:'Lara Victor',        trainer:'Lynch Harry E',           lastRace:'Unknown', figure:78, postMult:1.05 },
+  { race:1, postTime:'1:30 PM', post:6, name:'Show Me The Light',   odds:'9/2',  oddsNum:4.5,  jockey:'Santiago Victor',    trainer:'Wells Duane',             lastRace:'Unknown', figure:87, postMult:1.1  },
+  { race:2, postTime:'1:55 PM', post:1, name:'Looks Lucky To Me',   odds:'9/2',  oddsNum:4.5,  jockey:'Wales Travis',       trainer:'Martinez Ralph',          lastRace:'Unknown', figure:85, postMult:1.05 },
+  { race:2, postTime:'1:55 PM', post:2, name:'Reba Attack',         odds:'30/1', oddsNum:30,   jockey:'Aranguren Johanis',  trainer:'Childers Shane',          lastRace:'Unknown', figure:72, postMult:1.05 },
+  { race:2, postTime:'1:55 PM', post:3, name:'Tapicita',            odds:'20/1', oddsNum:20,   jockey:'Stanley Angel O',    trainer:'Durham Mike',             lastRace:'Unknown', figure:75, postMult:1.05 },
+  { race:2, postTime:'1:55 PM', post:4, name:'Ghaly Posse',         odds:'5/2',  oddsNum:2.5,  jockey:'Bendezu Alexander',  trainer:'Becker Scott',            lastRace:'Unknown', figure:88, postMult:1.05 },
+  { race:2, postTime:'1:55 PM', post:5, name:'Summer Of Mischief',  odds:'1/1',  oddsNum:1,    jockey:'Santiago Victor',    trainer:'Becker Scott',            lastRace:'Unknown', figure:92, postMult:1    },
+  { race:2, postTime:'1:55 PM', post:6, name:'Wildcat Bobbie',      odds:'20/1', oddsNum:20,   jockey:'Giles Emmanuel',     trainer:'Coontz Arthur A',         lastRace:'Unknown', figure:75, postMult:1.05 },
+  { race:2, postTime:'1:55 PM', post:7, name:'Frosted Eclair',      odds:'12/1', oddsNum:12,   jockey:'Felix Julio E',      trainer:'Martinez Ralph',          lastRace:'Unknown', figure:82, postMult:1.1  },
+  { race:3, postTime:'2:20 PM', post:1, name:'Blaze Beauty',        odds:'9/2',  oddsNum:4.5,  jockey:'Arrieta Reynier',    trainer:'Essenpreis Eddie M',      lastRace:'Unknown', figure:84, postMult:1.05 },
+  { race:3, postTime:'2:20 PM', post:2, name:'Wild Tapit',          odds:'4/1',  oddsNum:4,    jockey:'Bendezu Alexander',  trainer:'Martinez Ralph',          lastRace:'Unknown', figure:86, postMult:1.1  },
+  { race:3, postTime:'2:20 PM', post:3, name:'Misty Sunday',        odds:'20/1', oddsNum:20,   jockey:'Ortega Harold J',    trainer:'Razvi Omar',              lastRace:'Unknown', figure:74, postMult:1.05 },
+  { race:3, postTime:'2:20 PM', post:4, name:'Awesome Sunday',      odds:'1/1',  oddsNum:1,    jockey:'Santos Ademar',      trainer:'Martinez Ralph',          lastRace:'Unknown', figure:91, postMult:1    },
+  { race:3, postTime:'2:20 PM', post:5, name:'Wildwood Encore',     odds:'20/1', oddsNum:20,   jockey:'Ortega Javier O',    trainer:'Jelinski Jessica',        lastRace:'Unknown', figure:74, postMult:1.05 },
+  { race:3, postTime:'2:20 PM', post:6, name:"Lily's Woofy",        odds:'5/1',  oddsNum:5,    jockey:'Aranguren Johanis',  trainer:'Randazzo Teddy C',        lastRace:'Unknown', figure:83, postMult:1.05 },
+  { race:3, postTime:'2:20 PM', post:7, name:'Anna After Midnite',  odds:'6/1',  oddsNum:6,    jockey:'Tavares Javier',     trainer:'Randazzo Jr Frank C',     lastRace:'Unknown', figure:82, postMult:1.05 },
+  { race:4, postTime:'2:45 PM', post:1, name:'Alvin',               odds:'12/1', oddsNum:12,   jockey:'Lara Victor',        trainer:'Spagnola Ida',            lastRace:'Unknown', figure:80, postMult:1.05 },
+  { race:4, postTime:'2:45 PM', post:2, name:'City Of God',         odds:'7/2',  oddsNum:3.5,  jockey:'Aranguren Johanis',  trainer:'Sandrowski Gene J',       lastRace:'Unknown', figure:86, postMult:1.05 },
+  { race:4, postTime:'2:45 PM', post:3, name:'Larry The Poet',      odds:'1/1',  oddsNum:1,    jockey:'Giles Emmanuel',     trainer:'Rodriguez Jose G',        lastRace:'Unknown', figure:92, postMult:1    },
+  { race:4, postTime:'2:45 PM', post:4, name:'Freedom Attack',      odds:'20/1', oddsNum:20,   jockey:'Santiago Victor',    trainer:'Childers Shane',          lastRace:'Unknown', figure:74, postMult:1.05 },
+  { race:4, postTime:'2:45 PM', post:5, name:'Mystic Power',        odds:'8/5',  oddsNum:1.6,  jockey:'Tavares Javier',     trainer:'Rodriguez Jose G',        lastRace:'Unknown', figure:89, postMult:1.05 },
+  { race:4, postTime:'2:45 PM', post:6, name:'Smile Like Kyle',     odds:'20/1', oddsNum:20,   jockey:'Stanley Angel O',    trainer:'Pompell Robert',          lastRace:'Unknown', figure:74, postMult:1.05 },
+  { race:5, postTime:'3:10 PM', post:1, name:"Sarah's Boy Blue",    odds:'9/2',  oddsNum:4.5,  jockey:'Bendezu Alexander',  trainer:'Clay Pat',                lastRace:'Unknown', figure:84, postMult:1.05 },
+  { race:5, postTime:'3:10 PM', post:2, name:'Granddaddylonglegs',  odds:'4/1',  oddsNum:4,    jockey:'Giles Emmanuel',     trainer:'Rodriguez Jose G',        lastRace:'Unknown', figure:87, postMult:1.1  },
+  { race:5, postTime:'3:10 PM', post:3, name:'Excellent Empire',    odds:'8/1',  oddsNum:8,    jockey:'Lara Victor',        trainer:'Durham Mike',             lastRace:'Unknown', figure:82, postMult:1.05 },
+  { race:5, postTime:'3:10 PM', post:4, name:'Mr. Chivas',          odds:'4/1',  oddsNum:4,    jockey:'Wales Travis',       trainer:'Manley Steve',            lastRace:'Unknown', figure:86, postMult:1.05 },
+  { race:5, postTime:'3:10 PM', post:5, name:'Cog',                 odds:'12/1', oddsNum:12,   jockey:'Ortega Harold J',    trainer:'Blea III Anthony',        lastRace:'Unknown', figure:80, postMult:1.05 },
+  { race:5, postTime:'3:10 PM', post:6, name:'Mega Shack',          odds:'7/2',  oddsNum:3.5,  jockey:'Stanley Angel O',    trainer:'Durham Mike',             lastRace:'Unknown', figure:87, postMult:1.1  },
+  { race:5, postTime:'3:10 PM', post:7, name:'Pontus',              odds:'5/2',  oddsNum:2.5,  jockey:'Santos Ademar',      trainer:'Plasters Lori',           lastRace:'Unknown', figure:89, postMult:1    },
+  { race:6, postTime:'3:35 PM', post:1, name:'Steve',               odds:'7/2',  oddsNum:3.5,  jockey:'Santos Ademar',      trainer:'Straub Marvel U',         lastRace:'Unknown', figure:85, postMult:1.05 },
+  { race:6, postTime:'3:35 PM', post:2, name:'Red Moscato',         odds:'1/1',  oddsNum:1,    jockey:'Reyes Frank',        trainer:'Lopez Elias',             lastRace:'Unknown', figure:91, postMult:1    },
+  { race:6, postTime:'3:35 PM', post:3, name:'Span',                odds:'15/1', oddsNum:15,   jockey:'Ortega Harold J',    trainer:'Blea III Anthony',        lastRace:'Unknown', figure:78, postMult:1.05 },
+  { race:6, postTime:'3:35 PM', post:4, name:'Nagy And Da Bears',   odds:'15/1', oddsNum:15,   jockey:'Tavares Javier',     trainer:'Razvi Omar',              lastRace:'Unknown', figure:78, postMult:1.05 },
+  { race:6, postTime:'3:35 PM', post:5, name:'Coolthing',           odds:'3/1',  oddsNum:3,    jockey:'Felix Julio E',      trainer:'Lynch Harry E',           lastRace:'Unknown', figure:88, postMult:1.1  },
+  { race:6, postTime:'3:35 PM', post:6, name:'A P Blazing Green',   odds:'15/1', oddsNum:15,   jockey:'Ortega Javier O',    trainer:'Razvi Omar',              lastRace:'Unknown', figure:78, postMult:1.05 },
+  { race:6, postTime:'3:35 PM', post:7, name:'Fast Cross Traffic',  odds:'8/1',  oddsNum:8,    jockey:'Santiago Victor',    trainer:'Plasters Lori',           lastRace:'Unknown', figure:82, postMult:1.05 },
+  { race:7, postTime:'4:00 PM', post:1, name:'Cool Memory',         odds:'6/1',  oddsNum:6,    jockey:'Stanley Angel O',    trainer:'Durham Mike',             lastRace:'Unknown', figure:86, postMult:1.1  },
+  { race:7, postTime:'4:00 PM', post:2, name:'Maqamat',             odds:'15/1', oddsNum:15,   jockey:'Felix Julio E',      trainer:'Plasters Lori',           lastRace:'Unknown', figure:78, postMult:1.05 },
+  { race:7, postTime:'4:00 PM', post:3, name:'Zoombie',             odds:'8/5',  oddsNum:1.6,  jockey:'Bendezu Alexander',  trainer:'Martinez Ralph',          lastRace:'Unknown', figure:89, postMult:1.1  },
+  { race:7, postTime:'4:00 PM', post:4, name:'Purple Octopus',      odds:'3/2',  oddsNum:1.5,  jockey:'Aranguren Johanis',  trainer:'Lynch Harry E',           lastRace:'Unknown', figure:91, postMult:1    },
+  { race:7, postTime:'4:00 PM', post:5, name:'Mon Ami Fuzzie',      odds:'20/1', oddsNum:20,   jockey:'Giles Emmanuel',     trainer:'Rodriguez Jose G',        lastRace:'Unknown', figure:74, postMult:1.05 },
+  { race:7, postTime:'4:00 PM', post:6, name:'Sonnyisnotsofunny',   odds:'5/1',  oddsNum:5,    jockey:'Santos Ademar',      trainer:'Davis Jr Charles',        lastRace:'Unknown', figure:83, postMult:1.05 },
+  { race:7, postTime:'4:00 PM', post:7, name:"Khozan's Valentine",  odds:'12/1', oddsNum:12,   jockey:'Arrieta Reynier',    trainer:'Laux Clay',               lastRace:'Unknown', figure:80, postMult:1.05 },
+  { race:8, postTime:'4:25 PM', post:1, name:'Governing Party',     odds:'5/1',  oddsNum:5,    jockey:'Tavares Javier',     trainer:'Higgins Dennis',          lastRace:'Unknown', figure:85, postMult:1.05 },
+  { race:8, postTime:'4:25 PM', post:2, name:"Don'ttapthetill",     odds:'15/1', oddsNum:15,   jockey:'Bendezu Alexander',  trainer:'Becker Scott',            lastRace:'Unknown', figure:78, postMult:1.1  },
+  { race:8, postTime:'4:25 PM', post:3, name:'Galantini',           odds:'2/1',  oddsNum:2,    jockey:'Felix Julio E',      trainer:'Watkins James M',         lastRace:'Unknown', figure:90, postMult:1    },
+]
+
+function parseFairmountRow(row) {
+  return {
+    race:     parseInt(row.race, 10),
+    postTime: (row.postTime || '').trim(),
+    post:     parseInt(row.post, 10),
+    name:     (row.name     || '').trim(),
+    odds:     (row.odds     || '').trim(),
+    oddsNum:  parseFloat(row.oddsNum),
+    jockey:   (row.jockey   || '').trim(),
+    trainer:  (row.trainer  || '').trim(),
+    lastRace: (row.lastRace || '').trim(),
+    figure:   parseInt(row.figure, 10),
+    postMult: parseFloat(row.postMult),
+  }
+}
+
+function calcFairmountScore(h) {
+  const fig  = Math.min(100, Math.max(0, (h.figure - 70) / 35 * 100))
+  const post = Math.min(100, Math.max(0, (h.postMult / 1.2) * 100))
+  return Math.round(fig * 0.70 + post * 0.30)
+}
+
+function parsePostTimeCT(timeStr) {
+  const today = new Date()
+  const yyyy  = today.getFullYear()
+  const mm    = String(today.getMonth() + 1).padStart(2, '0')
+  const dd    = String(today.getDate()).padStart(2, '0')
+  const parts = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i)
+  if (!parts) return null
+  let h = parseInt(parts[1], 10)
+  const m   = parseInt(parts[2], 10)
+  const mer = parts[3].toUpperCase()
+  if (mer === 'PM' && h !== 12) h += 12
+  if (mer === 'AM' && h === 12) h = 0
+  return new Date(`${yyyy}-${mm}-${dd}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00-05:00`)
+}
+
+function getRaceStatus(postTimeStr) {
+  const d = parsePostTimeCT(postTimeStr)
+  if (!d) return 'UPCOMING'
+  const diff = d.getTime() - Date.now()
+  if (diff > 2 * 60 * 1000)   return 'UPCOMING'
+  if (diff > -25 * 60 * 1000) return 'LIVE'
+  return 'FINISHED'
+}
+
+function formatCountdown(postTimeStr) {
+  const d = parsePostTimeCT(postTimeStr)
+  if (!d) return ''
+  const diff = d.getTime() - Date.now()
+  if (diff <= -25 * 60 * 1000) return 'FINISHED'
+  if (diff <= 0) return 'LIVE'
+  const s = Math.floor(diff / 1000)
+  const hh = Math.floor(s / 3600)
+  const mm = Math.floor((s % 3600) / 60)
+  const ss = s % 60
+  if (hh > 0) return `${hh}h ${mm}m ${ss}s`
+  if (mm > 0) return `${mm}m ${ss}s`
+  return `${ss}s`
+}
+
+function runFairmountMC(horses, n = 25000) {
+  const scores = horses.map(calcFairmountScore)
+  const maxS   = Math.max(...scores)
+  const exps   = scores.map(s => Math.exp((s - maxS) / 15))
+  const tot    = exps.reduce((a, b) => a + b, 0)
+  const probs  = exps.map(e => e / tot)
+  const wins   = new Array(horses.length).fill(0)
+  const places = new Array(horses.length).fill(0)
+  const shows  = new Array(horses.length).fill(0)
+  for (let i = 0; i < n; i++) {
+    const ri = horses.map((_, j) => j)
+    const rp = [...probs]
+    for (let pos = 0; pos < 3 && ri.length > 0; pos++) {
+      const sum = rp.reduce((a, b) => a + b, 0)
+      let r = Math.random() * sum, j = 0
+      while (j < rp.length - 1 && r > rp[j]) { r -= rp[j]; j++ }
+      const idx = ri[j]
+      if (pos === 0) wins[idx]++
+      if (pos <= 1)  places[idx]++
+      shows[idx]++
+      ri.splice(j, 1); rp.splice(j, 1)
+    }
+  }
+  return horses.map((h, i) => ({
+    ...h,
+    winPct:    +(wins[i]   / n * 100).toFixed(1),
+    placePct:  +(places[i] / n * 100).toFixed(1),
+    showPct:   +(shows[i]  / n * 100).toFixed(1),
+    mlImplied: +(1 / (h.oddsNum + 1) * 100).toFixed(1),
+    ev:        +((wins[i] / n) * h.oddsNum * 2 - 2).toFixed(2),
+  }))
+}
+
+function FairmountTab() {
+  const [allHorses,    setAllHorses]    = useState(FAIRMOUNT_FALLBACK)
+  const [loading,      setLoading]      = useState(true)
+  const [error,        setError]        = useState(null)
+  const [usingLive,    setUsingLive]    = useState(false)
+  const [selectedRace, setSelectedRace] = useState(null)
+  const [mcResults,    setMcResults]    = useState(null)
+  const [mcRunning,    setMcRunning]    = useState(false)
+  const [, setTick] = useState(0)
+
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  const fetchData = useCallback(() => {
+    setLoading(true); setError(null)
+    Papa.parse(FAIRMOUNT_CSV_URL, {
+      download: true, header: true, skipEmptyLines: true,
+      complete: ({ data }) => {
+        const parsed = data.map(parseFairmountRow).filter(h => h.race > 0 && h.name)
+        if (parsed.length) { setAllHorses(parsed); setUsingLive(true) }
+        else setError('Sheet returned no valid rows — using fallback data')
+        setLoading(false)
+      },
+      error: () => { setError('Fetch failed — using fallback data'); setLoading(false) },
+    })
+  }, [])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  const raceMap = useMemo(() => {
+    const map = {}
+    allHorses.forEach(h => { if (!map[h.race]) map[h.race] = []; map[h.race].push(h) })
+    return map
+  }, [allHorses])
+
+  const raceNums = useMemo(() => Object.keys(raceMap).map(Number).sort((a, b) => a - b), [raceMap])
+
+  useEffect(() => {
+    if (selectedRace !== null || raceNums.length === 0) return
+    const next = raceNums.find(r => {
+      const h = raceMap[r]
+      return h && h[0] && getRaceStatus(h[0].postTime) !== 'FINISHED'
+    })
+    setSelectedRace(next ?? raceNums[raceNums.length - 1])
+  }, [raceNums, raceMap, selectedRace])
+
+  const currentHorses  = selectedRace ? (raceMap[selectedRace] || []) : []
+  const currentPostTime = currentHorses[0]?.postTime || ''
+  const raceStatus     = currentPostTime ? getRaceStatus(currentPostTime) : 'UPCOMING'
+  const countdown      = currentPostTime ? formatCountdown(currentPostTime) : ''
+
+  const statusPalette = {
+    UPCOMING: { bg:'#1a3a2a', color:'#5ba', border:'#3a6a4a' },
+    LIVE:     { bg:'#3a1a0a', color:'#fa8', border:'#8a4a2a' },
+    FINISHED: { bg:'#1a1a2a', color:'#88a', border:'#3a3a5a' },
+  }[raceStatus]
+
+  const handleRunMC = () => {
+    if (!currentHorses.length) return
+    setMcRunning(true)
+    setTimeout(() => { setMcResults(runFairmountMC(currentHorses)); setMcRunning(false) }, 20)
+  }
+
+  const handleRaceChange = n => { setSelectedRace(n); setMcResults(null) }
+
+  return (
+    <div>
+      {/* Header row */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12, marginBottom:20 }}>
+        <div>
+          <SectionTitle>Fairmount Park</SectionTitle>
+          <SectionDesc>Races 1–8 · Central Time · 25,000-race Monte Carlo simulation</SectionDesc>
+        </div>
+        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+          {usingLive && !loading && (
+            <span style={{ color:'#5ba', fontSize:12, background:'#1a3a2a', border:'1px solid #3a6a4a', borderRadius:12, padding:'3px 10px' }}>Live Sheet</span>
+          )}
+          {!usingLive && !loading && <span style={{ color:C.muted, fontSize:12 }}>Fallback data</span>}
+          {error && <span style={{ color:'#c66', fontSize:11 }}>{error}</span>}
+          <button onClick={fetchData} disabled={loading} style={{
+            background:C.card, color:loading ? C.muted : C.gold,
+            border:`1px solid ${loading ? C.border : C.gold}`,
+            borderRadius:6, padding:'7px 14px', fontSize:12,
+            fontWeight:'bold', cursor:loading ? 'wait' : 'pointer',
+            display:'flex', alignItems:'center', gap:6,
+          }}>
+            {loading ? (
+              <><span style={{ display:'inline-block', width:12, height:12, borderRadius:'50%', border:`2px solid ${C.border}`, borderTopColor:C.gold, animation:'derby-spin 0.7s linear infinite' }} />Loading…</>
+            ) : '↻ Refresh'}
+          </button>
+        </div>
+      </div>
+
+      {/* Race selector + countdown */}
+      <div style={{ display:'flex', gap:16, alignItems:'flex-end', flexWrap:'wrap', marginBottom:28 }}>
+        <div>
+          <FieldLabel>Select Race</FieldLabel>
+          <select
+            value={selectedRace || ''}
+            onChange={e => handleRaceChange(Number(e.target.value))}
+            style={{
+              background:C.card, color:C.gold, border:`1px solid ${C.gold}`,
+              borderRadius:6, padding:'8px 14px', fontSize:14, fontWeight:'bold',
+              cursor:'pointer', fontFamily:'Georgia, serif', minWidth:200,
+            }}
+          >
+            {raceNums.map(r => {
+              const h0  = raceMap[r]?.[0]
+              const pt  = h0?.postTime || ''
+              const st  = pt ? getRaceStatus(pt) : 'UPCOMING'
+              const pre = st === 'FINISHED' ? '✓ ' : st === 'LIVE' ? '● ' : ''
+              return <option key={r} value={r}>{pre}Race {r} — {pt}</option>
+            })}
+          </select>
+        </div>
+        {currentPostTime && (
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            <span style={{
+              background:statusPalette.bg, color:statusPalette.color, border:`1px solid ${statusPalette.border}`,
+              borderRadius:12, padding:'4px 14px', fontSize:12, fontWeight:'bold', letterSpacing:'0.08em',
+              alignSelf:'flex-start',
+            }}>{raceStatus}</span>
+            {raceStatus !== 'FINISHED' && (
+              <span style={{ color: raceStatus === 'LIVE' ? '#fa8' : C.goldLt, fontSize:22, fontWeight:'bold', fontFamily:'monospace', letterSpacing:'0.04em' }}>
+                {countdown}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Horse cards */}
+      {currentHorses.length > 0 && (
+        <div style={{ marginBottom:32 }}>
+          <FieldLabel>Race {selectedRace} Horses</FieldLabel>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(270px, 1fr))', gap:12 }}>
+            {currentHorses.map(h => {
+              const mcH = mcResults?.find(r => r.post === h.post)
+              return (
+                <div key={h.post} style={{
+                  background:C.card, border:`1px solid ${C.border}`,
+                  borderRadius:10, padding:16, borderLeft:`3px solid ${C.gold}`,
+                }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <span style={{
+                        background:C.gold, color:'#071510', borderRadius:6,
+                        width:28, height:28, display:'flex', alignItems:'center', justifyContent:'center',
+                        fontWeight:'bold', fontSize:14, flexShrink:0,
+                      }}>{h.post}</span>
+                      <span style={{ fontWeight:'bold', fontSize:14, color:C.text }}>{h.name}</span>
+                    </div>
+                    <span style={{ color:C.goldLt, fontWeight:'bold', fontSize:14, whiteSpace:'nowrap', marginLeft:8 }}>{h.odds}</span>
+                  </div>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'3px 12px', marginBottom: mcH ? 10 : 0 }}>
+                    <div style={{ color:C.muted, fontSize:11 }}>J: <span style={{ color:C.text }}>{h.jockey}</span></div>
+                    <div style={{ color:C.muted, fontSize:11 }}>Fig: <span style={{ color:C.goldLt, fontWeight:'bold' }}>{h.figure}</span></div>
+                    <div style={{ color:C.muted, fontSize:11, gridColumn:'1 / -1' }}>T: <span style={{ color:C.text }}>{h.trainer}</span></div>
+                  </div>
+                  {mcH && (
+                    <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:8, display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6 }}>
+                      {[['WIN', mcH.winPct, C.gold], ['PLACE', mcH.placePct, C.goldLt], ['SHOW', mcH.showPct, C.text]].map(([lbl, val, clr]) => (
+                        <div key={lbl} style={{ textAlign:'center' }}>
+                          <div style={{ color:C.muted, fontSize:10, marginBottom:2 }}>{lbl}</div>
+                          <div style={{ color:clr, fontWeight:'bold', fontSize:14 }}>{val}%</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Monte Carlo panel */}
+      <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:20 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16, flexWrap:'wrap', gap:8 }}>
+          <div>
+            <div style={{ color:C.gold, fontSize:16, fontWeight:'bold' }}>Monte Carlo Simulation</div>
+            <div style={{ color:C.muted, fontSize:12, marginTop:2 }}>25,000 races · Win / Place / Show % · Edge vs morning line</div>
+          </div>
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={handleRunMC} disabled={mcRunning || !currentHorses.length} style={{
+              background:C.gold, color:'#071510', border:'none',
+              borderRadius:6, padding:'8px 18px', fontSize:13, fontWeight:'bold',
+              cursor: mcRunning ? 'wait' : 'pointer',
+              display:'flex', alignItems:'center', gap:6, opacity: !currentHorses.length ? 0.5 : 1,
+            }}>
+              {mcRunning
+                ? <><span style={{ display:'inline-block', width:12, height:12, borderRadius:'50%', border:'2px solid #07151055', borderTopColor:'#071510', animation:'derby-spin 0.7s linear infinite' }} />Running…</>
+                : '▶ Run Simulation'
+              }
+            </button>
+            {mcResults && (
+              <button onClick={() => setMcResults(null)} style={{
+                background:'none', color:C.muted, border:`1px solid ${C.border}`,
+                borderRadius:6, padding:'8px 14px', fontSize:13, cursor:'pointer',
+              }}>↺ Reset</button>
+            )}
+          </div>
+        </div>
+
+        {mcResults ? (
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse' }}>
+              <thead>
+                <tr><Th>#</Th><Th>Horse</Th><Th>Odds</Th><Th>Win %</Th><Th>Place %</Th><Th>Show %</Th><Th>ML Implied</Th><Th>Edge</Th></tr>
+              </thead>
+              <tbody>
+                {[...mcResults].sort((a, b) => b.winPct - a.winPct).map((h, i) => {
+                  const edge      = +(h.winPct - h.mlImplied).toFixed(1)
+                  const edgeColor = edge > 3 ? '#5ba' : edge < -3 ? '#c66' : C.muted
+                  return (
+                    <tr key={h.post} style={{ background: i % 2 === 0 ? C.row : C.rowAlt }}>
+                      <Td style={{ color:C.gold, fontWeight:'bold' }}>{h.post}</Td>
+                      <Td style={{ fontWeight:'bold' }}>{h.name}</Td>
+                      <Td style={{ color:C.goldLt }}>{h.odds}</Td>
+                      <Td style={{ color:C.gold, fontWeight:'bold' }}>{h.winPct}%</Td>
+                      <Td style={{ color:C.goldLt }}>{h.placePct}%</Td>
+                      <Td>{h.showPct}%</Td>
+                      <Td style={{ color:C.muted }}>{h.mlImplied}%</Td>
+                      <Td style={{ color:edgeColor, fontWeight:'bold' }}>{edge > 0 ? '+' : ''}{edge}%</Td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div style={{ color:C.muted, fontSize:13, textAlign:'center', padding:'32px 0' }}>
+            Select a race and click Run Simulation to see results
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── App Shell ─────────────────────────────────────────────────────────────────
-const TABS = ['Field Card', 'Phase 1', 'Phase 2', 'Phase 3', 'Monte Carlo', 'Bet Builder']
+const TABS = ['Field Card', 'Phase 1', 'Phase 2', 'Phase 3', 'Monte Carlo', 'Bet Builder', 'Fairmount Park']
 
 export default function App() {
   const [horses,   setHorses]    = useState(FALLBACK_HORSES)
@@ -691,6 +1083,7 @@ export default function App() {
     <Phase3Tab     scored={scored} />,
     <MonteCarloTab scored={scored} />,
     <BetBuilderTab horses={horses} />,
+    <FairmountTab />,
   ]
 
   return (
