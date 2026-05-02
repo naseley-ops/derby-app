@@ -1,16 +1,35 @@
-# React + Vite
+# Kentucky Derby 2026 Handicapping App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React + Vite single-page handicapping dashboard for the 2026 Kentucky Derby.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Field Card** — Full 20-horse field with trainer, jockey, sire, running style, and tier
+- **Phase 1** — Speed figure and class-tier analysis with ranked bar chart
+- **Phase 2** — Pace aptitude and post-position multiplier breakdown
+- **Phase 3** — Final composite ratings combining speed, pace, and post
+- **Monte Carlo** — 10,000-race simulation with Win/Place/Show% and EV on $2 win bets
+- **Bet Builder** — Build Win, Exacta, Trifecta, Superfecta box tickets with cost calculator
 
-## React Compiler
+## Data Source
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Horse data is fetched live from a published Google Sheet on every load. The sheet is configurable via `SHEET_CSV_URL` in `src/App.jsx`. Falls back to hardcoded data if the fetch fails.
 
-## Expanding the ESLint configuration
+### Sheet column headers (row 1)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```
+post, name, odds, oddsNum, trainer, jockey, sire, tier, style, lastRace, figure, postMult
+```
+
+## Tech Stack
+
+- React 19 + Vite
+- Recharts (bar charts)
+- Papa Parse (Google Sheets CSV fetch)
+
+## Getting Started
+
+```bash
+npm install
+npm run dev
+```
