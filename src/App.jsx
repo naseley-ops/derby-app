@@ -137,18 +137,17 @@ function runSimulation(horses, isWet) {
       rank === 2 ? cfg.speedFig.rank2 :
       rank === 3 ? cfg.speedFig.rank3 : cfg.speedFig.other;
 
-    const flag       = (h.trainerFlag || '').trim().toUpperCase();
+    const flag        = (h.trainerFlag || '').trim().toUpperCase();
     const trainerMult = cfg.trainerFlags[flag] ?? cfg.trainerFlags.none;
-
-    const days    = Number(h.daysRest) || 999;
-    const restMult = daysRestMult(days, isWet);
+    const days        = Number(h.daysRest) || 999;
+    const restMult    = daysRestMult(days, isWet);
 
     return Math.max(fig * rankMult * figScale * trainerMult * restMult, 0.01);
   });
 
-  const modelProbs  = softmax(rawScores.map(s => Math.log(s)));
+  const modelProbs   = softmax(rawScores.map(s => Math.log(s)));
   const impliedProbs = horses.map(h => oddsToImplied(h.morningLine));
-  const blended = modelProbs.map((mp, i) =>
+  const blended      = modelProbs.map((mp, i) =>
     (1 - cfg.oddsWeight) * mp + cfg.oddsWeight * impliedProbs[i]
   );
   const blendSum  = blended.reduce((a, b) => a + b, 0);
@@ -165,7 +164,6 @@ function runSimulation(horses, isWet) {
     const ns    = noisy.reduce((a, b) => a + b, 0);
     const probs = noisy.map(p => p / ns);
 
-    // Weighted sampling without replacement for 1st / 2nd / 3rd
     const pool  = probs.slice();
     const idx   = Array.from({ length: n }, (_, i) => i);
     const order = [];
@@ -197,6 +195,52 @@ function runSimulation(horses, isWet) {
     return { ...h, simWin, simPlace, simShow, implied, edge, ciLo: ci.lo, ciHi: ci.hi };
   });
 }
+
+// ─── Bet Lock ─────────────────────────────────────────────────────────────────
+
+/**
+ * Scan all simulated races and return the best Lock candidate, or null.
+ * Gates (all must pass): edge > 3%, figRank <= 2, winPct > 15%, daysRest 14–150.
+ * LockScore = (edge% × 1.5) + (winPct%) − (ciRange% × 0.5)
+ */
+function computeLock(simByRace) {
+  let best = null;
+  for (const [race, results] of Object.entries(simByRace)) {
+    for (const r of results) {
+      const edgePct  = r.edge * 100;
+      const winPct   = r.simWin * 100;
+      const figRank  = parseInt(r.figRank, 10);
+      const days     = Number(r.daysRest) || 999;
+
+      if (edgePct <= 3)                  continue;
+      if (isNaN(figRank) || figRank > 2) continue;
+      if (winPct <= 15)                  continue;
+      if (days < 14 || days > 150)       continue;
+
+      const ciRangePct = (r.ciHi - r.ciLo) * 100;
+      const lockScore  = (edgePct * 1.5) + winPct - (ciRangePct * 0.5);
+
+      if (!best || lockScore > best.lockScore) {
+        best = { ...r, race, lockScore };
+      }
+    }
+  }
+  return best;
+}
+
+// ─── SUPER LOCK (future multi-track feature) ──────────────────────────────────
+// computeSuperLock(locksByTrack) compares each track's Lock object
+// and returns the one with the highest LockScore across all tracks.
+// When 2+ tracks are loaded and simulated, display as 🎆🎆 SUPER LOCK
+// banner above all other content. Currently unused — single track only.
+// locksByTrack format: [{ track: "fairmount", lock: lockObject }, ...]
+// function computeSuperLock(locksByTrack) {
+//   if (!locksByTrack || locksByTrack.length < 2) return null;
+//   return locksByTrack.reduce((best, t) =>
+//     t.lock && (!best.lock || t.lock.lockScore > best.lock.lockScore) ? t : best
+//   ).lock || null;
+// }
+// ─────────────────────────────────────────────────────────────────────────────
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
 const C = {
@@ -254,16 +298,17 @@ function Stat({ label, value, color }) {
   );
 }
 
-function HorseCard({ horse, result }) {
+function HorseCard({ horse, result, isLock }) {
   const edgeColor = result
     ? result.edge > 0.03 ? C.pos : result.edge < -0.03 ? C.neg : C.text
     : C.text;
   return (
-    <div style={{ ...S.card, borderLeft: `3px solid ${C.gold}` }}>
+    <div style={{ ...S.card, borderLeft: `3px solid ${isLock ? C.gold : C.border}` }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-        <div>
-          <span style={{ color: C.gold, fontWeight: 700, marginRight: 8, fontSize: 15 }}>#{horse.postPos}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ color: C.gold, fontWeight: 700, fontSize: 15 }}>#{horse.postPos}</span>
           <span style={{ fontWeight: 700, fontSize: 16 }}>{horse.horseName}</span>
+          {isLock && <span title="Lock of the Day" style={{ fontSize: 18 }}>🎆</span>}
         </div>
         <div style={{ color: C.muted, fontSize: 12 }}>ML: <span style={{ color: C.text }}>{horse.morningLine || '—'}</span></div>
       </div>
@@ -410,6 +455,196 @@ function PoissonChart({ results }) {
   );
 }
 
+// ─── Feature 4: High Variance Banner ──────────────────────────────────────────
+
+function VarianceBanner({ results }) {
+  if (!results || results.length < 2) return null;
+  const byWin  = [...results].sort((a, b) => b.simWin - a.simWin);
+  const rank1  = byWin[0].simWin * 100;
+  const comp   = byWin.length >= 4 ? byWin[3] : byWin[byWin.length - 1];
+  const spread = rank1 - comp.simWin * 100;
+
+  if (spread >= 12) return null;
+
+  const base = { borderRadius: 6, padding: '10px 14px', marginTop: 12, fontSize: 13, fontWeight: 600 };
+
+  if (spread >= 7) return (
+    <div style={{ ...base, background: '#2a2200', border: '1px solid #c9a84c', color: C.text }}>
+      ⚠️ COMPETITIVE FIELD — No dominant figure. Reduce stake, focus on value plays.
+    </div>
+  );
+  if (spread >= 4) return (
+    <div style={{ ...base, background: '#2a1500', border: '1px solid #e07a30', color: C.text }}>
+      🚨 HIGH VARIANCE — Top contenders within {spread.toFixed(1)}% of each other. Exotics are speculative. Consider skipping.
+    </div>
+  );
+  return (
+    <div style={{ ...base, background: '#2a0a0a', border: `1px solid ${C.neg}`, color: C.text }}>
+      🚫 COIN FLIP RACE — No meaningful edge exists. Field is nearly even. Model confidence: VERY LOW. Recommended: PASS.
+    </div>
+  );
+}
+
+// ─── Feature 2: Summary Card ──────────────────────────────────────────────────
+
+function SummaryCard({ simByRace, defaultRace, races, lock }) {
+  const [summaryRace, setSummaryRace] = useState(defaultRace || '');
+
+  useEffect(() => {
+    if (defaultRace) setSummaryRace(defaultRace);
+  }, [defaultRace]);
+
+  const simKeys = Object.keys(simByRace);
+  if (simKeys.length === 0) return null;
+
+  const effectiveRace = simByRace[summaryRace] ? summaryRace : simKeys[0];
+  const results       = simByRace[effectiveRace] || [];
+  if (!results.length) return null;
+
+  const raceInfo = races.find(r => r.race === effectiveRace);
+  const byWin    = [...results].sort((a, b) => b.simWin - a.simWin);
+  const modelWin = byWin[0];
+
+  // Value pick: highest +edge horse that isn't the model win
+  const byEdge   = [...results].sort((a, b) => b.edge - a.edge);
+  const posEdge  = byEdge.filter(r => r.edge > 0.03);
+  let valuePick  = null;
+  let noValue    = false;
+  if (posEdge.length === 0) {
+    valuePick = byEdge[0];
+    noValue   = true;
+  } else if (posEdge[0].horseName === modelWin.horseName) {
+    const others = posEdge.filter(r => r.horseName !== modelWin.horseName);
+    if (others.length > 0) {
+      valuePick = others[0];
+    } else {
+      valuePick = byEdge.find(r => r.horseName !== modelWin.horseName) || byEdge[0];
+      noValue   = true;
+    }
+  } else {
+    valuePick = posEdge[0];
+  }
+
+  // Auto-flag categories
+  const hotTrainers = results.filter(r => (r.trainerFlag || '').trim().toUpperCase() === 'HOT TRAINER');
+  const layoffs     = results.filter(r => { const d = Number(r.daysRest); return d > 150 && d < 999; });
+  const overlays    = results.filter(r => r.edge > 0.03);
+  const fades       = [...results].sort((a, b) => a.edge - b.edge).slice(0, 2);
+
+  const isLockRow   = name => lock?.race === effectiveRace && lock?.horseName === name;
+
+  const divider  = { borderTop: `1px solid ${C.border}`, margin: '10px 0' };
+  const row      = { fontSize: 13, padding: '4px 0', display: 'flex', alignItems: 'baseline', gap: 5, flexWrap: 'wrap' };
+  const fmt      = r => `${r.morningLine || '?'} · ${(r.simWin * 100).toFixed(1)}% · ${r.edge >= 0 ? '+' : ''}${(r.edge * 100).toFixed(1)}%`;
+
+  return (
+    <div style={{ ...S.card, marginTop: 4 }}>
+      {/* Header row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+        <div style={{ color: C.gold, fontWeight: 700, fontSize: 14, letterSpacing: 0.5 }}>
+          RACE {effectiveRace} SUMMARY{raceInfo?.postTime ? ` — ${raceInfo.postTime}` : ''}
+        </div>
+        {simKeys.length > 1 && (
+          <select
+            style={{ ...S.select, width: 'auto', fontSize: 12, padding: '4px 8px' }}
+            value={effectiveRace}
+            onChange={e => setSummaryRace(e.target.value)}
+          >
+            {simKeys.map(k => <option key={k} value={k}>Race {k}</option>)}
+          </select>
+        )}
+      </div>
+
+      <div style={divider} />
+
+      {/* Picks */}
+      <div style={row}>
+        <span>🥇</span>
+        <span style={{ color: C.muted, width: 110, flexShrink: 0 }}>MODEL WIN:</span>
+        <strong>{modelWin.horseName}</strong>
+        {isLockRow(modelWin.horseName) && <span>🎆</span>}
+        <span style={{ color: C.muted }}>{fmt(modelWin)}</span>
+      </div>
+
+      <div style={row}>
+        <span>💰</span>
+        <span style={{ color: C.muted, width: 110, flexShrink: 0 }}>VALUE PICK:</span>
+        <strong>{valuePick?.horseName}</strong>
+        {isLockRow(valuePick?.horseName) && <span>🎆</span>}
+        <span style={{ color: noValue ? C.neg : C.muted }}>
+          {fmt(valuePick)}{noValue ? ' ⚠ No value found' : ''}
+        </span>
+      </div>
+
+      <div style={row}>
+        <span>🎰</span>
+        <span style={{ color: C.muted, width: 110, flexShrink: 0 }}>EXACTA:</span>
+        <strong>{byWin[0]?.horseName} → {byWin[1]?.horseName || '—'}</strong>
+      </div>
+
+      <div style={row}>
+        <span>🏆</span>
+        <span style={{ color: C.muted, width: 110, flexShrink: 0 }}>TRIFECTA:</span>
+        <strong>{byWin[0]?.horseName} / {byWin[1]?.horseName || '—'} / {byWin[2]?.horseName || '—'}</strong>
+      </div>
+
+      <div style={divider} />
+
+      {/* Auto flags */}
+      <div style={{ color: C.gold, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Auto Flags</div>
+
+      {hotTrainers.map(r => (
+        <div key={'ht' + r.horseName} style={row}>
+          <span>✅</span>
+          <span style={{ color: C.pos, fontWeight: 600 }}>HOT TRAINER:</span>
+          <strong>{r.horseName}</strong>
+          <span style={{ color: C.muted }}>— trainer flag active, +20% boost applied</span>
+        </div>
+      ))}
+
+      {layoffs.map(r => (
+        <div key={'lo' + r.horseName} style={row}>
+          <span>⚠️</span>
+          <span style={{ color: '#e0a030', fontWeight: 600 }}>LAYOFF:</span>
+          <strong>{r.horseName}</strong>
+          <span style={{ color: C.muted }}>
+            — {r.daysRest} days, {((1 - ALGORITHM_CONFIG.daysRest.longLayoff.mult) * 100).toFixed(0)}% penalty applied
+          </span>
+        </div>
+      ))}
+
+      {overlays.map(r => (
+        <div key={'ov' + r.horseName} style={row}>
+          <span>💰</span>
+          <span style={{ color: C.pos, fontWeight: 600 }}>OVERLAY:</span>
+          <strong>{r.horseName}</strong>
+          <span style={{ color: C.muted }}>
+            at {r.morningLine} — model edge +{(r.edge * 100).toFixed(1)}%
+          </span>
+        </div>
+      ))}
+
+      {fades.map(r => (
+        <div key={'fd' + r.horseName} style={row}>
+          <span>🚫</span>
+          <span style={{ color: C.neg, fontWeight: 600 }}>FADE:</span>
+          <strong>{r.horseName}</strong>
+          <span style={{ color: C.muted }}>
+            — market {(r.implied * 100).toFixed(1)}%, model {(r.simWin * 100).toFixed(1)}% (edge {(r.edge * 100).toFixed(1)}%)
+          </span>
+        </div>
+      ))}
+
+      {hotTrainers.length === 0 && layoffs.length === 0 && overlays.length === 0 && (
+        <div style={{ color: C.muted, fontSize: 12 }}>No flags triggered for this race.</div>
+      )}
+
+      {/* Feature 4: variance banner */}
+      <VarianceBanner results={results} />
+    </div>
+  );
+}
+
 // ─── Bet Builder ──────────────────────────────────────────────────────────────
 
 function BetCard({ label, horses }) {
@@ -428,13 +663,13 @@ function BetCard({ label, horses }) {
   );
 }
 
-function BetBuilder({ results }) {
+function BetBuilder({ results, lock }) {
   const [bets, setBets] = useState([]);
   const [form, setForm] = useState({ type: 'WIN', horse: '', stake: '', odds: '' });
 
-  const sorted  = results ? [...results].sort((a, b) => b.edge - a.edge)    : [];
-  const posEV   = sorted.filter(r => r.edge > 0.03);
-  const byWin   = results ? [...results].sort((a, b) => b.simWin - a.simWin) : [];
+  const sorted = results ? [...results].sort((a, b) => b.edge - a.edge)     : [];
+  const posEV  = sorted.filter(r => r.edge > 0.03);
+  const byWin  = results ? [...results].sort((a, b) => b.simWin - a.simWin) : [];
 
   const pnl = bets.reduce((sum, b) => {
     if (b.result === 'W') {
@@ -445,12 +680,11 @@ function BetBuilder({ results }) {
     return sum;
   }, 0);
 
-  const addBet = () => {
+  const addBet    = () => {
     if (!form.horse || !form.stake) return;
     setBets(p => [...p, { ...form, stake: parseFloat(form.stake) || 0, id: Date.now(), result: null }]);
     setForm(f => ({ ...f, horse: '', stake: '', odds: '' }));
   };
-
   const settle    = (id, res) => setBets(p => p.map(b => b.id === id ? { ...b, result: res } : b));
   const removeBet = id => setBets(p => p.filter(b => b.id !== id));
 
@@ -465,11 +699,28 @@ function BetBuilder({ results }) {
   return (
     <div style={{ padding: 20, maxWidth: 900, margin: '0 auto' }}>
 
+      {/* Feature 3: Lock banner */}
+      {lock && (
+        <div style={{
+          background: '#0d1f0d', border: `2px solid ${C.gold}`, borderRadius: 10,
+          padding: '14px 20px', marginBottom: 24,
+        }}>
+          <div style={{ color: C.gold, fontWeight: 700, fontSize: 18, marginBottom: 6 }}>🎆 LOCK OF THE DAY</div>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
+            {lock.horseName} · Race {lock.race} · {lock.morningLine || '?'} · {(lock.simWin * 100).toFixed(1)}% WIN · +{(lock.edge * 100).toFixed(1)}% EDGE
+          </div>
+          <div style={{ color: C.muted, fontSize: 13 }}>
+            Speed Fig Rank #{lock.figRank} · {lock.daysRest} days rest
+            {lock.trainerFlag && lock.trainerFlag.toLowerCase() !== 'none' ? ` · ${lock.trainerFlag}` : ''}
+          </div>
+        </div>
+      )}
+
       <div style={{ color: C.gold, fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Recommended Bets</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12, marginBottom: 24 }}>
-        {byWin[0]          && <BetCard label="WIN"      horses={[byWin[0]]} />}
-        {byWin[0]          && <BetCard label="SHOW"     horses={[byWin[0]]} />}
-        {byWin.length >= 2  && <BetCard label="EXACTA"  horses={byWin.slice(0, 2)} />}
+        {byWin[0]          && <BetCard label="WIN"       horses={[byWin[0]]} />}
+        {byWin[0]          && <BetCard label="SHOW"      horses={[byWin[0]]} />}
+        {byWin.length >= 2  && <BetCard label="EXACTA"   horses={byWin.slice(0, 2)} />}
         {byWin.length >= 3  && <BetCard label="TRIFECTA" horses={byWin.slice(0, 3)} />}
       </div>
 
@@ -565,15 +816,20 @@ function BetBuilder({ results }) {
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [tab,          setTab]          = useState(0);
-  const [isWet,        setIsWet]        = useState(false);
-  const [loading,      setLoading]      = useState(false);
-  const [error,        setError]        = useState(null);
-  const [races,        setRaces]        = useState([]);
-  const [selectedRace, setSelectedRace] = useState('');
-  const [simByRace,    setSimByRace]    = useState({});
-  const [simRunning,   setSimRunning]   = useState(false);
+  const [tab,           setTab]           = useState(0);
+  const [isWet,         setIsWet]         = useState(false);
+  const [loading,       setLoading]       = useState(false);
+  const [error,         setError]         = useState(null);
+  const [allHorses,     setAllHorses]     = useState([]);
+  const [availableDates,setAvailableDates]= useState([]);
+  const [selectedDate,  setSelectedDate]  = useState('');
+  const [races,         setRaces]         = useState([]);
+  const [selectedRace,  setSelectedRace]  = useState('');
+  const [simByRace,     setSimByRace]     = useState({});
+  const [simRunning,    setSimRunning]    = useState(false);
+  const [lastSimRace,   setLastSimRace]   = useState('');
 
+  // Feature 1: fetch parses raceDate, builds allHorses + availableDates
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -583,39 +839,40 @@ export default function App() {
       const text = await resp.text();
       const { data } = Papa.parse(text, { header: true, skipEmptyLines: true });
 
-      // Fuzzy-normalise column names to known keys
       const norm = row => {
         const m = {};
         for (const [k, v] of Object.entries(row)) {
           m[k.toLowerCase().replace(/[^a-z0-9]/g, '')] = v;
         }
         return {
-          race:        m.race         || m.racenumber  || m.raceno       || '',
-          postTime:    m.posttime      || m.post         || m.time         || '',
-          postPos:     m.postposition  || m.postpos      || m.pp           || '',
-          horseName:   m.horse         || m.horsename    || m.name         || '',
-          jockey:      m.jockey        || m.rider        || '',
-          trainer:     m.trainer       || '',
-          morningLine: m.morningline   || m.ml            || m.odds        || '',
-          speedFig:    m.speedfig      || m.fig           || m.beyer       || m.figure || '',
-          figRank:     m.figrank       || m.rank          || '',
-          trainerFlag: m.trainerflag   || m.flag          || m.trainernote || '',
-          daysRest:    m.daysrest      || m.days          || m.dayssincelast || '999',
-          winPct:      m.winpct        || m['win%']       || '',
+          raceDate:    m.racedate     || m.date          || '',
+          race:        m.race         || m.racenumber     || m.raceno       || '',
+          postTime:    m.posttime     || m.post           || m.time         || '',
+          postPos:     m.postposition || m.postpos        || m.pp           || '',
+          horseName:   m.horse        || m.horsename      || m.name         || '',
+          jockey:      m.jockey       || m.rider          || '',
+          trainer:     m.trainer      || '',
+          morningLine: m.morningline  || m.ml             || m.odds         || '',
+          speedFig:    m.speedfig     || m.fig            || m.beyer        || m.figure || '',
+          figRank:     m.figrank      || m.rank           || '',
+          trainerFlag: m.trainerflag  || m.flag           || m.trainernote  || '',
+          daysRest:    m.daysrest     || m.days           || m.dayssincelast || '999',
+          winPct:      m.winpct       || m['win%']        || '',
         };
       };
 
-      const horses    = data.map(norm).filter(h => h.horseName);
-      const raceMap   = {};
-      horses.forEach(h => {
-        if (!raceMap[h.race]) raceMap[h.race] = { race: h.race, postTime: h.postTime, horses: [] };
-        raceMap[h.race].horses.push(h);
-      });
-      const raceList = Object.values(raceMap)
-        .sort((a, b) => a.race.localeCompare(b.race, undefined, { numeric: true }));
+      const horses = data.map(norm).filter(h => h.horseName);
+      setAllHorses(horses);
 
-      setRaces(raceList);
-      setSelectedRace(r => r || (raceList[0]?.race ?? ''));
+      // Unique sorted dates
+      const today   = new Date().toISOString().split('T')[0];
+      const dates   = [...new Set(horses.map(h => h.raceDate).filter(Boolean))].sort();
+      setAvailableDates(dates);
+
+      // Default: nearest future date, else most recent past
+      const future  = dates.filter(d => d >= today);
+      const dflt    = future.length > 0 ? future[0] : dates[dates.length - 1] || '';
+      setSelectedDate(prev => prev || dflt);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -625,10 +882,32 @@ export default function App() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Rebuild races list + clear sims whenever date or data changes
+  useEffect(() => {
+    if (!allHorses.length) return;
+    const filtered = selectedDate
+      ? allHorses.filter(h => h.raceDate === selectedDate)
+      : allHorses;
+
+    const raceMap = {};
+    filtered.forEach(h => {
+      if (!raceMap[h.race]) raceMap[h.race] = { race: h.race, postTime: h.postTime, horses: [] };
+      raceMap[h.race].horses.push(h);
+    });
+    const raceList = Object.values(raceMap)
+      .sort((a, b) => a.race.localeCompare(b.race, undefined, { numeric: true }));
+
+    setRaces(raceList);
+    setSelectedRace(raceList[0]?.race ?? '');
+    setSimByRace({});
+    setLastSimRace('');
+  }, [allHorses, selectedDate]);
+
   const currentRace    = races.find(r => r.race === selectedRace);
   const currentHorses  = currentRace?.horses || [];
   const currentResults = simByRace[selectedRace] || null;
   const allResults     = Object.values(simByRace).flat();
+  const lock           = computeLock(simByRace);
 
   const postDate = (() => {
     const t = currentRace?.postTime?.trim();
@@ -644,14 +923,25 @@ export default function App() {
       try {
         const results = runSimulation(currentHorses, isWet);
         setSimByRace(p => ({ ...p, [selectedRace]: results }));
+        setLastSimRace(selectedRace);
       } finally {
         setSimRunning(false);
       }
     }, 0);
   };
 
-  const handleReset = () =>
+  const handleReset = () => {
     setSimByRace(p => { const n = { ...p }; delete n[selectedRace]; return n; });
+    setLastSimRace('');
+  };
+
+  // Feature 1: date badge
+  const today     = new Date().toISOString().split('T')[0];
+  const dateBadge = selectedDate >= today ? 'NEXT RACE' : 'LAST CARD';
+  const badgeColor = selectedDate >= today ? C.pos : C.gold;
+
+  const scrollToDisclaimer = () =>
+    document.getElementById('disclaimer')?.scrollIntoView({ behavior: 'smooth' });
 
   return (
     <div style={S.app}>
@@ -660,13 +950,46 @@ export default function App() {
       <header style={S.header}>
         <div style={{ flex: 1 }}>
           <h1 style={S.title}>🏇 The Rail</h1>
-          <div style={S.sub}>Fairmount Park · Collinsville, IL</div>
+          <div style={S.sub}>
+            Fairmount Park · Collinsville, IL · Speed Figure Model v3
+            {' '}
+            <button
+              onClick={scrollToDisclaimer}
+              style={{
+                background: 'none', border: `1px solid ${C.border}`, borderRadius: 10,
+                color: C.muted, fontSize: 10, padding: '1px 7px', cursor: 'pointer',
+                marginLeft: 6, verticalAlign: 'middle',
+              }}
+            >
+              ⓘ Entertainment Only
+            </button>
+          </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ color: C.muted, fontSize: 12 }}>Track:</span>
           <button style={S.pill(!isWet)} onClick={() => setIsWet(false)}>☀ Dry</button>
           <button style={S.pill(isWet)}  onClick={() => setIsWet(true)}>🌧 Wet</button>
-          <button style={{ ...S.btn(), marginLeft: 8 }} onClick={fetchData} disabled={loading}>
+
+          {/* Feature 1: date picker */}
+          {availableDates.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 8 }}>
+              <select
+                style={{ ...S.select, width: 'auto', fontSize: 12, padding: '4px 8px' }}
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value)}
+              >
+                {availableDates.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+              <span style={{
+                background: badgeColor, color: C.bg, fontSize: 10, fontWeight: 700,
+                padding: '2px 7px', borderRadius: 10, whiteSpace: 'nowrap',
+              }}>
+                {dateBadge}
+              </span>
+            </div>
+          )}
+
+          <button style={{ ...S.btn(), marginLeft: 4 }} onClick={fetchData} disabled={loading}>
             {loading ? '⏳' : '↺ Refresh'}
           </button>
         </div>
@@ -724,6 +1047,7 @@ export default function App() {
               key={`${h.postPos}-${h.horseName}`}
               horse={h}
               result={currentResults?.find(r => r.horseName === h.horseName)}
+              isLock={lock?.horseName === h.horseName && lock?.race === selectedRace}
             />
           ))}
 
@@ -732,6 +1056,14 @@ export default function App() {
               <WinBarChart  results={currentResults} />
               <EdgeBarChart results={currentResults} />
               <PoissonChart results={currentResults} />
+
+              {/* Feature 2: Summary Card */}
+              <SummaryCard
+                simByRace={simByRace}
+                defaultRace={lastSimRace}
+                races={races}
+                lock={lock}
+              />
 
               <div style={S.card}>
                 <div style={{ color: C.gold, fontWeight: 700, marginBottom: 12 }}>Full Simulation Results</div>
@@ -748,7 +1080,10 @@ export default function App() {
                       {[...currentResults].sort((a, b) => b.simWin - a.simWin).map(r => (
                         <tr key={r.horseName}>
                           <td style={S.td}>{r.postPos}</td>
-                          <td style={{ ...S.td, fontWeight: 700 }}>{r.horseName}</td>
+                          <td style={{ ...S.td, fontWeight: 700 }}>
+                            {r.horseName}
+                            {lock?.horseName === r.horseName && lock?.race === selectedRace && ' 🎆'}
+                          </td>
                           <td style={S.td}>{(r.simWin   * 100).toFixed(1)}%</td>
                           <td style={S.td}>{(r.simPlace * 100).toFixed(1)}%</td>
                           <td style={S.td}>{(r.simShow  * 100).toFixed(1)}%</td>
@@ -768,7 +1103,34 @@ export default function App() {
       )}
 
       {/* ── Bet Builder tab ── */}
-      {tab === 1 && <BetBuilder results={allResults.length > 0 ? allResults : null} />}
+      {tab === 1 && (
+        <BetBuilder
+          results={allResults.length > 0 ? allResults : null}
+          lock={lock}
+        />
+      )}
+
+      {/* ── Feature 5: Legal Disclaimer Footer ── */}
+      <footer
+        id="disclaimer"
+        style={{
+          background: '#0d120d',
+          borderTop: `1px solid ${C.gold}`,
+          padding: '12px 24px',
+          textAlign: 'center',
+          fontSize: 11,
+          color: C.muted,
+          lineHeight: 1.6,
+          marginTop: 40,
+        }}
+      >
+        🏇 The Rail is for entertainment and informational purposes only. Nothing on this site constitutes
+        financial or betting advice. Horse racing involves significant financial risk. Please gamble
+        responsibly and within your means. If you or someone you know has a gambling problem, call the
+        National Problem Gambling Helpline:{' '}
+        <span style={{ color: C.text, fontWeight: 600 }}>1-800-522-4700</span>
+        {' '}(available 24/7, free and confidential). You must be 21 or older to wager in most jurisdictions.
+      </footer>
 
     </div>
   );
