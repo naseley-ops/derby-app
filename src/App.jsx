@@ -529,7 +529,7 @@ function SummaryCard({ simByRace, defaultRace, races, lock }) {
   const hotTrainers = results.filter(r => (r.trainerFlag || '').trim().toUpperCase() === 'HOT TRAINER');
   const layoffs     = results.filter(r => { const d = Number(r.daysRest); return d > 150 && d < 999; });
   const overlays    = results.filter(r => r.edge > 0.03);
-  const fades       = [...results].sort((a, b) => a.edge - b.edge).slice(0, 2);
+  const fades       = [...results].sort((a, b) => a.edge - b.edge).filter(r => r.horseName !== modelWin.horseName).slice(0, 2);
 
   const isLockRow   = name => lock?.race === effectiveRace && lock?.horseName === name;
 
@@ -564,6 +564,11 @@ function SummaryCard({ simByRace, defaultRace, races, lock }) {
         <strong>{modelWin.horseName}</strong>
         {isLockRow(modelWin.horseName) && <span>🎆</span>}
         <span style={{ color: C.muted }}>{fmt(modelWin)}</span>
+        {modelWin.edge < 0 && (
+          <span style={{ color: '#e0a030', fontSize: 12 }}>
+            ⚠️ Overpriced at current odds — better as exotic key than straight WIN bet
+          </span>
+        )}
       </div>
 
       <div style={row}>
